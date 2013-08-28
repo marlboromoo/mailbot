@@ -18,6 +18,7 @@ NEWLINE = '\n'
 COMMASPACE = ', '
 MAX_MAIL_PER_MINUTE = 10
 MAX_MAIL_PER_HOUR = MAX_MAIL_PER_MINUTE * 60
+ALERT_THRESHILD = 20 
 BOT_ADDRESS = 'MailBot@cylee.com'
 OP_ADDRESS = ['marlboromoo@gmail.com', 'timothy.lee@104.com.tw']
 
@@ -156,6 +157,12 @@ class MailBot(object):
             kwargs={'sec' : 60, 'fun' : self.flush}
         )
         self.cleaner_thread.start()
+        #. checker
+        self.checker_thread = threading.Thread(
+            target=self._timer,
+            kwargs={'sec' : 60, 'fun' : self.check}
+        )
+        self.checker_thread.start()
 
     def stop(self):
         """Stop the MailBot
@@ -165,6 +172,7 @@ class MailBot(object):
         self.smtp_thread.join()
         self.reseter_thread.join()
         self.cleaner_thread.join()
+        self.checker_thread.join()
 
     def count(self):
         """Count the mails in the queue.
@@ -182,12 +190,23 @@ class MailBot(object):
         #. TODO: prettier output, more stats.
         return self.smtp.counter
 
+    def check(self):
+        """@todo: Docstring for check.
+        :returns: @todo
+
+        """
+        emails = self.count()
+        if emails > ALERT_THRESHILD:
+            self.notice(text="There are %s emails in the queue." % (emails),
+                        subject="Too many emails in the queue!!"
+                       )
+
     def flush(self):
         """Flush the mails in the queue.
         """
         i = 0
-        retry = self.count()
-        while i < retry:
+        mails = self.count()
+        while i < mails:
             #. Reach the rate limit.
             if not self.smtp.flush_message():
                 break
