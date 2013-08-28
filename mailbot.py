@@ -146,6 +146,7 @@ class MailBot(object):
     def start(self):
         """Start the MailBot.
         """
+        print "MailBot - tiny mail robot."
         self.smtp = BotsSMTPServer(self.localaddr, self.remoteaddr)
         self.smtp.last_reset = int(time.time())
         self.is_start = True
@@ -153,28 +154,38 @@ class MailBot(object):
         self.smtp_thread = threading.Thread(
             target=asyncore.loop,
             kwargs= {'timeout' : 1})
+        self.smtp_thread.setDaemon(True)
         self.smtp_thread.start()
         #. reseter
         self.reseter_thread = threading.Thread(
             target=self._timer,
             kwargs={'sec': 60, 'fun' : self.smtp.reset_counter}
         )
+        self.reseter_thread.setDaemon(True)
         self.reseter_thread.start()
         #. checker
         self.checker_thread = threading.Thread(
             target=self._timer,
             kwargs={'sec' : 60, 'fun' : self.flush_and_check}
         )
+        self.checker_thread.setDaemon(True)
         self.checker_thread.start()
+        print "%s * Server listen at %s:%s." % (
+            pretty_time(), self.localaddr[0], self.localaddr[1])
+        print "%s * Quit the server with CONTROL+C." % (pretty_time())
+        self.notice(text='<3', subject='MailBot start!')
 
     def stop(self):
         """Stop the MailBot.
         """
+        print '\n! Stop the server ...'
         self.is_start = False
         self.smtp.close() #. asyncore.dispatcher.close()
         self.smtp_thread.join()
         self.reseter_thread.join()
         self.checker_thread.join()
+        self.notice(text='<3', subject='MailBot stop!')
+        print 'Done.'
 
     def count(self):
         """Count the mails in the queue.
@@ -288,14 +299,9 @@ class MailBot(object):
                 break
 
 def main():
-    print "MailBot - tiny mail robot."
     bot = MailBot(('127.0.0.1', 1025), ('127.0.0.1', 25))
-    print "%s * Server listen at %s:%s." % \
-    (pretty_time(), bot.localaddr[0], bot.localaddr[1])
-    print "%s * Quit the server with CONTROL+C." % (pretty_time())
     try:
         bot.start()
-        bot.notice(text='<3', subject='MailBot start!')
         while True:
             if DEBUG:
                 bot.stats()
@@ -303,8 +309,6 @@ def main():
             #. See: http://goo.gl/zcLYdT
             time.sleep(1) 
     except KeyboardInterrupt:
-        print '\n! Stop the server ...'
-        bot.notice(text='<3', subject='MailBot stop!')
         bot.stop()
 
 if __name__ == '__main__':
