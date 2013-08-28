@@ -16,8 +16,8 @@ MAX = 20
 
 def create_msg():
     msg = MIMEText('I have %i girl friends.' % (random.randint(1, 1000)))
-    msg['To'] = email.utils.formataddr(('Recipient', MSG_FROM))
-    msg['From'] = email.utils.formataddr(('Author', MSG_TO))
+    msg['From'] = email.utils.formataddr(('Recipient', MSG_FROM))
+    msg['To'] = email.utils.formataddr(('Author', MSG_TO))
     msg['Subject'] = 'ohya <3'
     return msg
 
