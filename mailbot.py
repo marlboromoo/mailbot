@@ -21,6 +21,7 @@ MAX_MAIL_PER_HOUR = MAX_MAIL_PER_MINUTE * 60
 ALERT_THRESHILD = 20 
 BOT_ADDRESS = 'MailBot@cylee.com'
 OP_ADDRESS = ['marlboromoo@gmail.com', 'timothy.lee@104.com.tw']
+PURGE_OVER_THRESHOLD = True
 DEBUG = True
 
 def pretty_time():
@@ -77,9 +78,14 @@ class BotsSMTPServer(PureProxy):
                 self.mail_queue.insert(0, (peer, mailfrom, rcpttos, data))
         return False
 
+    def purge_queue(self):
+        """Purge the mail queue.
+        """
+        print "%s !! Purge the mail queue." % (pretty_time())
+        self.mail_queue = []
+
     def reset_counter(self):
-        """@todo: Docstring for reset_counter.
-        :returns: @todo
+        """Reset the mail counter.
         """
         print "%s ** Reset the counter." % (pretty_time())
         self.counter = 0
@@ -155,16 +161,10 @@ class MailBot(object):
             kwargs={'sec': 60, 'fun' : self.smtp.reset_counter}
         )
         self.reseter_thread.start()
-        #. cleaner
-        self.cleaner_thread = threading.Thread(
-            target=self._timer,
-            kwargs={'sec' : 60, 'fun' : self.flush}
-        )
-        self.cleaner_thread.start()
         #. checker
         self.checker_thread = threading.Thread(
             target=self._timer,
-            kwargs={'sec' : 60, 'fun' : self.check}
+            kwargs={'sec' : 60, 'fun' : self.flush_and_check}
         )
         self.checker_thread.start()
 
@@ -175,7 +175,6 @@ class MailBot(object):
         self.smtp.close() #. asyncore.dispatcher.close()
         self.smtp_thread.join()
         self.reseter_thread.join()
-        self.cleaner_thread.join()
         self.checker_thread.join()
 
     def count(self):
@@ -209,6 +208,9 @@ class MailBot(object):
             self.notice(text="There are %s emails in the queue." % (emails),
                         subject="Too many emails in the queue!!"
                        )
+            #. purge the mail queue
+            if PURGE_OVER_THRESHOLD:
+                self.smtp.purge_queue()
         if not DEBUG:
             self.stats()
 
@@ -223,6 +225,12 @@ class MailBot(object):
             if not self.smtp.flush_message():
                 break
             i += 1
+
+    def flush_and_check(self):
+        """Flush the mail queue first then check the mail queue stats.
+        """
+        self.flush()
+        self.check()
 
     def notice(self, text, subject):
         """@todo: Docstring for notice.
