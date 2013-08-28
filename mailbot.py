@@ -6,18 +6,20 @@ Tiny mail robot.
 Reference: http://pymotw.com/2/smtpd/index.html
 """
 
-#from smtpd import SMTPServer
 from smtpd import PureProxy
 import asyncore
-#import smtplib
-#import email.utils
-#from email.mime.text import MIMEText
+import smtplib
+import email.utils
+from email.mime.text import MIMEText
 import threading
 import time
 
 NEWLINE = '\n'
+COMMASPACE = ', '
 MAX_MAIL_PER_MINUTE = 10
 MAX_MAIL_PER_HOUR = MAX_MAIL_PER_MINUTE * 60
+BOT_ADDRESS = 'MailBot@cylee.com'
+OP_ADDRESS = ['marlboromoo@gmail.com', 'timothy.lee@104.com.tw']
 
 class BotsSMTPServer(PureProxy):
 
@@ -177,6 +179,7 @@ class MailBot(object):
         :returns: @todo
 
         """
+        #. TODO: prettier output, more stats.
         return self.smtp.counter
 
     def flush(self):
@@ -189,6 +192,52 @@ class MailBot(object):
             if not self.smtp.flush_message():
                 break
             i += 1
+
+    def notice(self, text, subject):
+        """@todo: Docstring for notice.
+        :returns: @todo
+
+        """
+        msg = self._create_msg(text, BOT_ADDRESS, OP_ADDRESS, subject)
+        self._send_msg(msg, BOT_ADDRESS, OP_ADDRESS)
+
+    def _send_msg(self, msg, from_, to):
+        """@todo: Docstring for _send_msg.
+
+        :msg: MIME message.
+        :from_: the sender's email address.
+        :to: a list of the recipient's email addresss.
+        :returns: @todo
+
+        """
+        try:
+            server = smtplib.SMTP(self.remoteaddr[0], self.remoteaddr[1])
+            server.sendmail(from_, to, msg.as_string())
+        finally:
+            server.quit()
+
+    def _create_msg(self, message, from_, to, subject):
+        """Create raw mail message.
+        :message: text to send.
+        :from_: the sender's email address.
+        :to: a list of the recipient's email addresss.
+        :returns: MIME message.
+
+        """
+        msg = MIMEText(message)
+        msg['From'] = self._formataddr(from_)
+        msg['To'] = COMMASPACE.join([self._formataddr(i) for i in to])
+        msg['Subject'] = subject
+        return msg
+
+    def _formataddr(self, addr):
+        """@todo: Docstring for _formataddr.
+
+        :addr: email address.
+        :returns: the string value suitable for an RFC 2822 From/To/Cc header
+
+        """
+        return email.utils.formataddr((addr.split('@')[0], addr))
 
     def _timer(self, sec, fun):
         """Reset the stats of BotsSMTPServer
@@ -213,6 +262,7 @@ def main():
     print "* Quit the server with CONTROL+C."
     try:
         bot.start()
+        bot.notice(text='<3', subject='MailBot start!')
         while True:
             #print bot.count()
             print bot.stats(), bot.count()
@@ -221,6 +271,7 @@ def main():
             time.sleep(1) 
     except KeyboardInterrupt:
         print '\n! Stop the server ...'
+        bot.notice(text='<3', subject='MailBot stop!')
         bot.stop()
 
 if __name__ == '__main__':
