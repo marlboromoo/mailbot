@@ -21,6 +21,15 @@ MAX_MAIL_PER_HOUR = MAX_MAIL_PER_MINUTE * 60
 ALERT_THRESHILD = 20 
 BOT_ADDRESS = 'MailBot@cylee.com'
 OP_ADDRESS = ['marlboromoo@gmail.com', 'timothy.lee@104.com.tw']
+DEBUG = True
+
+def pretty_time():
+    """Generate the format datetime.
+
+    :return: format datetime string.
+
+    """
+    return time.strftime("%Y-%M-%d %H:%M:%S", time.localtime())
 
 class BotsSMTPServer(PureProxy):
 
@@ -43,21 +52,15 @@ class BotsSMTPServer(PureProxy):
         :returns: None for a normal '250 Ok' response or response string.
 
         """
-        #. Debug mesasges
-        #print type(peer), type(mailfrom), type(rcpttos), type(data)
-        #print "Receiving message from:", peer
-        #print "Message addressed from:", mailfrom
-        #print "Message addressed to:", rcpttos
-        #print "Message length:", len(data)
-        #print "Message body:", data
-        #data = self._fix_header(peer, data)
-        #print "Message body after fix:", data
-
         #. Relay mail
         if self._under_threshold():
+            print "%s >> Relay message - mailfrom: %s, rcpttos: %s" % \
+                    (pretty_time(), mailfrom, rcpttos)
             self._relay(mailfrom, rcpttos, data)
         #. Put in queue
         else:
+            print "%s ++ Queue message - mailfrom: %s, rcpttos: %s" % \
+                    (pretty_time(), mailfrom, rcpttos)
             self.mail_queue.append((peer, mailfrom, rcpttos, data))
         return
 
@@ -78,6 +81,7 @@ class BotsSMTPServer(PureProxy):
         """@todo: Docstring for reset_counter.
         :returns: @todo
         """
+        print "%s ** Reset the counter." % (pretty_time())
         self.counter = 0
         self.last_reset = int(time.time())
 
@@ -89,7 +93,7 @@ class BotsSMTPServer(PureProxy):
         refused = self._deliver(mailfrom, rcpttos, data)
         self.counter += 1
         if refused:
-            print '! We got some refusals:', refused
+            print '%s !! We got some refusals:' % (pretty_time()), refused
 
     def _fix_header(self, peer, data):
         """Insert 'X-Peer' mail header.
@@ -138,7 +142,7 @@ class MailBot(object):
         """Start the MailBot
         """
         self.smtp = BotsSMTPServer(self.localaddr, self.remoteaddr)
-        self.smtp.last_reset = time.time()
+        self.smtp.last_reset = int(time.time())
         self.is_start = True
         #. smtp server
         self.smtp_thread = threading.Thread(
@@ -187,23 +191,31 @@ class MailBot(object):
         :returns: @todo
 
         """
-        #. TODO: prettier output, more stats.
-        return self.smtp.counter
+        print "%s ** Counter: %s, Queue: %s, Reset: %s " % (
+            pretty_time(),
+            self.smtp.counter,
+            self.count(),
+            self.smtp.last_reset,
+        )
 
     def check(self):
         """@todo: Docstring for check.
         :returns: @todo
 
         """
+        print "%s ** Check the mail queue." % (pretty_time())
         emails = self.count()
         if emails > ALERT_THRESHILD:
             self.notice(text="There are %s emails in the queue." % (emails),
                         subject="Too many emails in the queue!!"
                        )
+        if not DEBUG:
+            self.stats()
 
     def flush(self):
         """Flush the mails in the queue.
         """
+        print "%s ** Flush the mail queue." % (pretty_time())
         i = 0
         mails = self.count()
         while i < mails:
@@ -266,7 +278,7 @@ class MailBot(object):
             if self.is_start:
                 time.sleep(1)
                 i += 1
-                print i
+                #print i
                 if i == sec:
                     fun()
                     i = 0
@@ -276,15 +288,15 @@ class MailBot(object):
 def main():
     print "MailBot - tiny mail robot."
     bot = MailBot(('127.0.0.1', 1025), ('127.0.0.1', 25))
-    print "* Server listen at %s:%s." % \
-    (bot.localaddr[0], bot.localaddr[1])
-    print "* Quit the server with CONTROL+C."
+    print "%s * Server listen at %s:%s." % \
+    (pretty_time(), bot.localaddr[0], bot.localaddr[1])
+    print "%s * Quit the server with CONTROL+C." % (pretty_time())
     try:
         bot.start()
         bot.notice(text='<3', subject='MailBot start!')
         while True:
-            #print bot.count()
-            print bot.stats(), bot.count()
+            if DEBUG:
+                bot.stats()
             #. Sleep to caught the KeyboardInterrupt exception.
             #. See: http://goo.gl/zcLYdT
             time.sleep(1) 
