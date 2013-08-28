@@ -62,13 +62,14 @@ class BotsSMTPServer(PureProxy):
         """Flush the message in mail queue
         :returns: True if flush a message else False
         """
-        peer, mailfrom, rcpttos, data = self.mail_queue.pop(0)
-        if self._under_threshold():
-            self._relay(mailfrom, rcpttos, data)
-            return True
-        else:
-            self.mail_queue.insert(0, (peer, mailfrom, rcpttos, data))
-            return False
+        if len(self.mail_queue) > 0:
+            peer, mailfrom, rcpttos, data = self.mail_queue.pop(0)
+            if self._under_threshold():
+                self._relay(mailfrom, rcpttos, data)
+                return True
+            else:
+                self.mail_queue.insert(0, (peer, mailfrom, rcpttos, data))
+        return False
 
     def reset_counter(self):
         """@todo: Docstring for reset_counter.
@@ -183,7 +184,7 @@ class MailBot(object):
         """
         i = 0
         retry = self.count()
-        while i <= retry:
+        while i < retry:
             #. Reach the rate limit.
             if not self.smtp.flush_message():
                 break
