@@ -38,7 +38,6 @@ class BotsSMTPServer(PureProxy):
     SMTPServer is an old style class, see the follow link for more information:
     http://hg.python.org/cpython/file/2.7/Lib/smtpd.py
     """
-
     mail_queue = []
     counter = 0 
     last_reset = None #. in Epoch.
@@ -66,8 +65,10 @@ class BotsSMTPServer(PureProxy):
         return
 
     def flush_message(self):
-        """Flush the message in mail queue
+        """Flush the message in mail queue.
+
         :returns: True if flush a message else False
+
         """
         if len(self.mail_queue) > 0:
             peer, mailfrom, rcpttos, data = self.mail_queue.pop(0)
@@ -92,9 +93,7 @@ class BotsSMTPServer(PureProxy):
         self.last_reset = int(time.time())
 
     def _relay(self, mailfrom, rcpttos, data):
-        """Relay the message
-        :returns: @todo
-
+        """Relay the message.
         """
         refused = self._deliver(mailfrom, rcpttos, data)
         self.counter += 1
@@ -145,7 +144,7 @@ class MailBot(object):
         self.is_start = None
 
     def start(self):
-        """Start the MailBot
+        """Start the MailBot.
         """
         self.smtp = BotsSMTPServer(self.localaddr, self.remoteaddr)
         self.smtp.last_reset = int(time.time())
@@ -169,7 +168,7 @@ class MailBot(object):
         self.checker_thread.start()
 
     def stop(self):
-        """Stop the MailBot
+        """Stop the MailBot.
         """
         self.is_start = False
         self.smtp.close() #. asyncore.dispatcher.close()
@@ -186,9 +185,7 @@ class MailBot(object):
         return len(self.smtp.mail_queue)
 
     def stats(self):
-        """@todo: Docstring for stats.
-        :returns: @todo
-
+        """ Print the status of BotsSMTPServer.
         """
         print "%s ** Counter: %s, Queue: %s, Reset: %s " % (
             pretty_time(),
@@ -198,9 +195,7 @@ class MailBot(object):
         )
 
     def check(self):
-        """@todo: Docstring for check.
-        :returns: @todo
-
+        """Check the status of BotsSMTPServer.
         """
         print "%s ** Check the mail queue." % (pretty_time())
         emails = self.count()
@@ -233,15 +228,13 @@ class MailBot(object):
         self.check()
 
     def notice(self, text, subject):
-        """@todo: Docstring for notice.
-        :returns: @todo
-
+        """Notice the operators.
         """
         msg = self._create_msg(text, BOT_ADDRESS, OP_ADDRESS, subject)
         self._send_msg(msg, BOT_ADDRESS, OP_ADDRESS)
 
     def _send_msg(self, msg, from_, to):
-        """@todo: Docstring for _send_msg.
+        """Send message, like a MUA.
 
         :msg: MIME message.
         :from_: the sender's email address.
@@ -257,6 +250,7 @@ class MailBot(object):
 
     def _create_msg(self, message, from_, to, subject):
         """Create raw mail message.
+
         :message: text to send.
         :from_: the sender's email address.
         :to: a list of the recipient's email addresss.
@@ -270,7 +264,7 @@ class MailBot(object):
         return msg
 
     def _formataddr(self, addr):
-        """@todo: Docstring for _formataddr.
+        """Like the 'email.utils.formataddr' but generate the sender name automatic.
 
         :addr: email address.
         :returns: the string value suitable for an RFC 2822 From/To/Cc header
