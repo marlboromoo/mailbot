@@ -23,7 +23,6 @@ import yapdi
 #  EDIT ME <3
 ###############################################################################
 
-BOTNAME = 'MailBot'
 LOGFILE = '/tmp/mailbot.log'
 PIDFILE = '/tmp/mailbot.pid'
 MAX_MAIL_PER_MINUTE = 10
@@ -40,8 +39,10 @@ DEBUG = True
 #  MailBot <3
 ###############################################################################
 
+BOTNAME = 'MailBot'
 NEWLINE = '\n'
 COMMASPACE = ', '
+mailbot_instance = None
 
 class BotsSMTPServer(PureProxy):
 
@@ -191,17 +192,17 @@ class MailBot(object):
     def stop(self):
         """Stop the MailBot.
         """
-        logging.info('!! Stop the server ...')
-        self.is_alive = False
-        self.smtp.close() #. asyncore.dispatcher.close()
-        #. TODO: Gracefully stop the threads.
-        #logging.info("!! Waiting the threads ... ")
-        #self.smtp_thread.join()
-        #self.reseter_thread.join()
-        #self.checker_thread.join()
-        #logging.info("!! All threads stop. ")
-        self.notice(text='<3', subject='%s stop!' % (BOTNAME))
-        logging.info('Done.')
+        if self.is_alive:
+            logging.info('!! Stop the server ...')
+            self.is_alive = False
+            self.smtp.close() #. asyncore.dispatcher.close()
+            logging.info("!! Waiting the threads ... ")
+            self.smtp_thread.join()
+            self.reseter_thread.join()
+            self.checker_thread.join()
+            logging.info("!! All threads stop. ")
+            self.notice(text='<3', subject='%s stop!' % (BOTNAME))
+            logging.info('!! Server stop.')
 
     def count(self):
         """Count the mails in the queue.
@@ -314,10 +315,17 @@ class MailBot(object):
                 break
 
 def sigterm_handler(signum, frame):
-    """Handle the SIGTERM signal.
+    """Handle the SIGTERM signal, yapdi will try to kill the process until the 
+    process dies, so we have to purge the instance.
+
     See: http://docs.python.org/2/library/signal.html
+         https://github.com/kasun/YapDi/blob/master/yapdi.py
     """
-    raise KeyboardInterrupt
+    global mailbot_instance
+    if mailbot_instance:
+        mailbot_instance.stop()
+        #. purge the instance to prevent the signal spams.
+        mailbot_instance = None
 
 def main():
     #. logger
@@ -331,7 +339,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['start', 'stop'])
     args = parser.parse_args()
-    daemon = yapdi.Daemon(pidfile=PIDFILE)
+    daemon = yapdi.Daemon(pidfile=PIDFILE, stderr=LOGFILE)
     if args.action == 'start':
         print "Start %s ..." % (BOTNAME)
         #. daemonize
@@ -343,15 +351,16 @@ def main():
             try:
                 signal.signal(signal.SIGTERM, sigterm_handler)
                 #. mailbot
-                bot = MailBot(BIND_ADDRESS, (SMTP_ADDRESS))
-                bot.start()
-                while True:
+                global mailbot_instance
+                mailbot_instance = MailBot(BIND_ADDRESS, (SMTP_ADDRESS))
+                mailbot_instance.start()
+                while mailbot_instance:
                     if DEBUG:
-                        bot.stats()
+                        mailbot_instance.stats()
                     time.sleep(1) 
-            except KeyboardInterrupt, e:
-                del(e)
-                bot.stop()
+            #. If something error, we can use CTRL+C to force the bot stop.
+            except KeyboardInterrupt:
+                mailbot_instance.stop()
         else:
             print('Daemonization failed!')
     if args.action == 'stop':
