@@ -2,8 +2,15 @@
 # encoding: utf-8
 
 """
-Tiny mail robot.
-Reference: http://pymotw.com/2/smtpd/index.html
+                        ___    ____            __      
+ /'\_/`\            __ /\_ \  /\  _`\         /\ \__   
+/\      \     __   /\_\\//\ \ \ \ \L\ \    ___\ \ ,_\  
+\ \ \__\ \  /'__`\ \/\ \ \ \ \ \ \  _ <'  / __`\ \ \/  
+ \ \ \_/\ \/\ \L\.\_\ \ \ \_\ \_\ \ \L\ \/\ \L\ \ \ \_ 
+  \ \_\\ \_\ \__/.\_\\ \_\/\____\\ \____/\ \____/\ \__\
+   \/_/ \/_/\/__/\/_/ \/_/\/____/ \/___/  \/___/  \/__/  - Tiny mail robot.
+
+
 """
 
 from smtpd import PureProxy
@@ -48,7 +55,10 @@ class BotsSMTPServer(PureProxy):
 
     """ Custom SMTP server to transfer message.
     SMTPServer is an old style class, see the follow link for more information:
-    http://hg.python.org/cpython/file/2.7/Lib/smtpd.py
+
+    * http://pymotw.com/2/smtpd/index.html
+    * http://hg.python.org/cpython/file/2.7/Lib/smtpd.py
+
     """
     mail_queue = []
     counter = 0 
@@ -316,10 +326,11 @@ class MailBot(object):
 
 def sigterm_handler(signum, frame):
     """Handle the SIGTERM signal, yapdi will try to kill the process until the 
-    process dies, so we have to purge the instance.
+    process dies, so we have to purge the instance, see:
 
-    See: http://docs.python.org/2/library/signal.html
-         https://github.com/kasun/YapDi/blob/master/yapdi.py
+    * http://docs.python.org/2/library/signal.html
+    * https://github.com/kasun/YapDi/blob/master/yapdi.py
+
     """
     global mailbot_instance
     if mailbot_instance:
