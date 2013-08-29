@@ -35,7 +35,7 @@ LOGFILE = '/tmp/mailbot.log'
 PIDFILE = '/tmp/mailbot.pid'
 MAX_MAIL_PER_MINUTE = 10
 MAX_MAIL_PER_HOUR = MAX_MAIL_PER_MINUTE * 60
-ALERT_THRESHILD = 20 
+ALERT_THRESHILD = 500 
 BIND_ADDRESS = ('127.0.0.1', 1025)
 SMTP_ADDRESS = ('127.0.0.1', 25)
 BOT_ADDRESS = 'mailbot@localhost'
@@ -149,7 +149,7 @@ class BotsSMTPServer(PureProxy):
         :returns: True if not reach rate limit else False.
 
         """
-        return True if self.counter < MAX_MAIL_PER_MINUTE else False
+        return True if self.counter < MAX_MAIL_PER_HOUR else False
 
 
 class MailBot(object):
@@ -184,14 +184,14 @@ class MailBot(object):
         #. reseter
         self.reseter_thread = threading.Thread(
             target=self._timer,
-            kwargs={'sec': 60, 'fun' : self.smtp.reset_counter}
+            kwargs={'sec': 3599, 'fun' : self.smtp.reset_counter}
         )
         self.reseter_thread.setDaemon(True)
         self.reseter_thread.start()
         #. checker
         self.checker_thread = threading.Thread(
             target=self._timer,
-            kwargs={'sec' : 60, 'fun' : self.flush_and_check}
+            kwargs={'sec' : 3600, 'fun' : self.flush_and_check}
         )
         self.checker_thread.setDaemon(True)
         self.checker_thread.start()
@@ -237,6 +237,8 @@ class MailBot(object):
         """
         logging.info("** Check the mail queue.")
         emails = self.count()
+        if not DEBUG:
+            self.stats()
         if emails > ALERT_THRESHILD:
             self.notice(text="There are %s emails in the queue." % (emails),
                         subject="Too many emails in the queue!!"
@@ -244,8 +246,6 @@ class MailBot(object):
             #. purge the mail queue
             if PURGE_OVER_THRESHOLD:
                 self.smtp.purge_queue()
-        if not DEBUG:
-            self.stats()
 
     def flush(self):
         """Flush the mails in the queue.
