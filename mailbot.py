@@ -123,7 +123,7 @@ class BotsSMTPServer(PureProxy):
         refused = self._deliver(mailfrom, rcpttos, data)
         self.counter += 1
         if refused:
-            logging.warning('!! We got some refusals:', refused)
+            logging.warning('!! Fail to relay the message: : %s' % (refused))
 
     def _fix_header(self, peer, data):
         """Insert 'X-Peer' mail header.
@@ -195,6 +195,7 @@ class MailBot(object):
         )
         self.checker_thread.setDaemon(True)
         self.checker_thread.start()
+
         logging.info("* Server listen at %s:%s." % (
             self.localaddr[0], self.localaddr[1]))
         #logging.info("* Quit the server with CONTROL+C.")
@@ -283,6 +284,8 @@ class MailBot(object):
         try:
             server = smtplib.SMTP(self.remoteaddr[0], self.remoteaddr[1])
             server.sendmail(from_, to, msg.as_string())
+        except Exception, e:
+            logging.warning("!! Fail to send the message: %s" % (str(e)))
         finally:
             server.quit()
 
