@@ -38,7 +38,7 @@ ALERT_THRESHILD = 20
 BIND_ADDRESS = ('127.0.0.1', 1025)
 SMTP_ADDRESS = ('127.0.0.1', 25)
 BOT_ADDRESS = 'mailbot@localhost'
-OP_ADDRESS = ['marlboromoo@gmail.com', 'timothy.lee@104.com.tw']
+OP_ADDRESS = ['marlboromoo@gmail.com', 'timothy.lee@localhost']
 PURGE_OVER_THRESHOLD = True
 DEBUG = True
 
