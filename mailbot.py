@@ -105,7 +105,7 @@ class BotsSMTPServer(PureProxy):
         refused = self._deliver(mailfrom, rcpttos, data)
         self.counter += 1
         if refused:
-            logging.info('!! We got some refusals:', refused)
+            logging.warning('!! We got some refusals:', refused)
 
     def _fix_header(self, peer, data):
         """Insert 'X-Peer' mail header.
