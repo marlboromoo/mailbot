@@ -148,7 +148,7 @@ class MailBot(object):
         """
         self.localaddr = localaddr
         self.remoteaddr = remoteaddr
-        self.is_start = None
+        self.is_alive = None
 
     def start(self):
         """Start the MailBot.
@@ -156,7 +156,7 @@ class MailBot(object):
         logging.info("MailBot - tiny mail robot.")
         self.smtp = BotsSMTPServer(self.localaddr, self.remoteaddr)
         self.smtp.last_reset = int(time.time())
-        self.is_start = True
+        self.is_alive = True
         #. smtp server
         self.smtp_thread = threading.Thread(
             target=asyncore.loop,
@@ -179,14 +179,14 @@ class MailBot(object):
         self.checker_thread.start()
         logging.info("* Server listen at %s:%s." % (
             self.localaddr[0], self.localaddr[1]))
-        logging.info("* Quit the server with CONTROL+C.")
+        #logging.info("* Quit the server with CONTROL+C.")
         self.notice(text='<3', subject='MailBot start!')
 
     def stop(self):
         """Stop the MailBot.
         """
         logging.info('!! Stop the server ...')
-        self.is_start = False
+        self.is_alive = False
         self.smtp.close() #. asyncore.dispatcher.close()
         #. TODO: Gracefully stop the threads.
         #logging.info("!! Waiting the threads ... ")
@@ -297,7 +297,7 @@ class MailBot(object):
         """
         i = 0
         while True:
-            if self.is_start:
+            if self.is_alive:
                 time.sleep(1)
                 i += 1
                 #print i
@@ -327,24 +327,37 @@ def main():
     args = parser.parse_args()
     daemon = yapdi.Daemon(pidfile='/tmp/mailbot.pid')
     if args.action == 'start':
-        logging.info('Start MailBot ...')
+        print 'Start MailBot ...'
         #. daemonize
-        daemon.daemonize()
-        try:
-            #. Handle the SIGTERM: https://github.com/kasun/YapDi/blob/master/yapdi.py
-            signal.signal(signal.SIGTERM, sigterm_handler)
-            #. mailbot
-            bot = MailBot(('127.0.0.1', 1025), ('127.0.0.1', 25))
-            bot.start()
-            while True:
-                if DEBUG:
-                    bot.stats()
-                time.sleep(1) 
-        except KeyboardInterrupt:
-            bot.stop()
+        if daemon.status():
+            print "MailBot is already running!"
+            exit()
+        retcode = daemon.daemonize()
+        if retcode == yapdi.OPERATION_SUCCESSFUL:
+            try:
+                signal.signal(signal.SIGTERM, sigterm_handler)
+                #. mailbot
+                bot = MailBot(('127.0.0.1', 1025), ('127.0.0.1', 25))
+                bot.start()
+                while True:
+                    if DEBUG:
+                        bot.stats()
+                    time.sleep(1) 
+            except KeyboardInterrupt:
+                bot.stop()
+        else:
+            print('Daemonization failed!')
     if args.action == 'stop':
-        logging.info('Stop MailBot ...')
-        daemon.kill()
+        print 'Stop MailBot ...'
+        if not daemon.status():
+            print "MailBot is not running!"
+            exit()
+        retcode = daemon.kill()
+        if retcode == yapdi.OPERATION_FAILED:
+            print "Trying to stop MailBot failed!"
+        else:
+            print "Done."
+
 
 if __name__ == '__main__':
     main()
