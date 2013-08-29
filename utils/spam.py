@@ -11,7 +11,7 @@ import email.utils
 from email.mime.text import MIMEText
 
 MSG_FROM = 'spam@robotkingdom.lab'
-MSG_TO = ['timothy.lee@104.com.tw', 'marlboromoo@gmail.com']
+MSG_TO = ['marlboromoo@gmail.com', 'timothy.lee@localhost']
 MAX = 20
 
 def formataddr(addr):
