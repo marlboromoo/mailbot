@@ -13,6 +13,15 @@ import email.utils
 from email.mime.text import MIMEText
 import threading
 import time
+import argparse
+import signal
+import logging
+
+import yapdi
+
+###############################################################################
+#  EDIT ME <3
+###############################################################################
 
 NEWLINE = '\n'
 COMMASPACE = ', '
@@ -24,13 +33,9 @@ OP_ADDRESS = ['marlboromoo@gmail.com', 'timothy.lee@104.com.tw']
 PURGE_OVER_THRESHOLD = True
 DEBUG = True
 
-def pretty_time():
-    """Generate the format datetime.
-
-    :return: format datetime string.
-
-    """
-    return time.strftime("%Y-%M-%d %H:%M:%S", time.localtime())
+###############################################################################
+#  MailBot <3
+###############################################################################
 
 class BotsSMTPServer(PureProxy):
 
@@ -54,13 +59,15 @@ class BotsSMTPServer(PureProxy):
         """
         #. Relay mail
         if self._under_threshold():
-            print "%s >> Relay message - mailfrom: %s, rcpttos: %s" % \
-                    (pretty_time(), mailfrom, rcpttos)
+            logging.info(
+                ">> Relay message - mailfrom: %s, rcpttos: %s" % (
+                    mailfrom, rcpttos))
             self._relay(mailfrom, rcpttos, data)
         #. Put in queue
         else:
-            print "%s ++ Queue message - mailfrom: %s, rcpttos: %s" % \
-                    (pretty_time(), mailfrom, rcpttos)
+            logging.info(
+                "++ Queue message - mailfrom: %s, rcpttos: %s" % (
+                    mailfrom, rcpttos))
             self.mail_queue.append((peer, mailfrom, rcpttos, data))
         return
 
@@ -82,13 +89,13 @@ class BotsSMTPServer(PureProxy):
     def purge_queue(self):
         """Purge the mail queue.
         """
-        print "%s !! Purge the mail queue." % (pretty_time())
+        logging.info("!! Purge the mail queue.")
         self.mail_queue = []
 
     def reset_counter(self):
         """Reset the mail counter.
         """
-        print "%s ** Reset the counter." % (pretty_time())
+        logging.info("** Reset the counter.")
         self.counter = 0
         self.last_reset = int(time.time())
 
@@ -98,7 +105,7 @@ class BotsSMTPServer(PureProxy):
         refused = self._deliver(mailfrom, rcpttos, data)
         self.counter += 1
         if refused:
-            print '%s !! We got some refusals:' % (pretty_time()), refused
+            logging.info('!! We got some refusals:', refused)
 
     def _fix_header(self, peer, data):
         """Insert 'X-Peer' mail header.
@@ -146,7 +153,7 @@ class MailBot(object):
     def start(self):
         """Start the MailBot.
         """
-        print "MailBot - tiny mail robot."
+        logging.info("MailBot - tiny mail robot.")
         self.smtp = BotsSMTPServer(self.localaddr, self.remoteaddr)
         self.smtp.last_reset = int(time.time())
         self.is_start = True
@@ -170,22 +177,25 @@ class MailBot(object):
         )
         self.checker_thread.setDaemon(True)
         self.checker_thread.start()
-        print "%s * Server listen at %s:%s." % (
-            pretty_time(), self.localaddr[0], self.localaddr[1])
-        print "%s * Quit the server with CONTROL+C." % (pretty_time())
+        logging.info("* Server listen at %s:%s." % (
+            self.localaddr[0], self.localaddr[1]))
+        logging.info("* Quit the server with CONTROL+C.")
         self.notice(text='<3', subject='MailBot start!')
 
     def stop(self):
         """Stop the MailBot.
         """
-        print '\n! Stop the server ...'
+        logging.info('!! Stop the server ...')
         self.is_start = False
         self.smtp.close() #. asyncore.dispatcher.close()
-        self.smtp_thread.join()
-        self.reseter_thread.join()
-        self.checker_thread.join()
+        #. TODO: Gracefully stop the threads.
+        #logging.info("!! Waiting the threads ... ")
+        #self.smtp_thread.join()
+        #self.reseter_thread.join()
+        #self.checker_thread.join()
+        #logging.info("!! All threads stop. ")
         self.notice(text='<3', subject='MailBot stop!')
-        print 'Done.'
+        logging.info('Done.')
 
     def count(self):
         """Count the mails in the queue.
@@ -198,17 +208,16 @@ class MailBot(object):
     def stats(self):
         """ Print the status of BotsSMTPServer.
         """
-        print "%s ** Counter: %s, Queue: %s, Reset: %s " % (
-            pretty_time(),
+        logging.info("** Counter: %s, Queue: %s, Reset: %s " % (
             self.smtp.counter,
             self.count(),
             self.smtp.last_reset,
-        )
+        ))
 
     def check(self):
         """Check the status of BotsSMTPServer.
         """
-        print "%s ** Check the mail queue." % (pretty_time())
+        logging.info("** Check the mail queue.")
         emails = self.count()
         if emails > ALERT_THRESHILD:
             self.notice(text="There are %s emails in the queue." % (emails),
@@ -223,7 +232,7 @@ class MailBot(object):
     def flush(self):
         """Flush the mails in the queue.
         """
-        print "%s ** Flush the mail queue." % (pretty_time())
+        logging.info("%s ** Flush the mail queue.")
         i = 0
         mails = self.count()
         while i < mails:
@@ -298,18 +307,44 @@ class MailBot(object):
             else:
                 break
 
+def sigterm_handler(signum, frame):
+    """Handle the SIGTERM signal.
+    See: http://docs.python.org/2/library/signal.html
+    """
+    raise KeyboardInterrupt
+
 def main():
-    bot = MailBot(('127.0.0.1', 1025), ('127.0.0.1', 25))
-    try:
-        bot.start()
-        while True:
-            if DEBUG:
-                bot.stats()
-            #. Sleep to caught the KeyboardInterrupt exception.
-            #. See: http://goo.gl/zcLYdT
-            time.sleep(1) 
-    except KeyboardInterrupt:
-        bot.stop()
+    #. logger
+    logging.basicConfig(
+        filename='/tmp/mailbot.log',
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        #datefmt='%Y-%M-%d %H:%M:%S',
+        level=logging.DEBUG
+    )
+    #. parse arg
+    parser = argparse.ArgumentParser()
+    parser.add_argument('action', choices=['start', 'stop'])
+    args = parser.parse_args()
+    daemon = yapdi.Daemon(pidfile='/tmp/mailbot.pid')
+    if args.action == 'start':
+        logging.info('Start MailBot ...')
+        #. daemonize
+        daemon.daemonize()
+        try:
+            #. Handle the SIGTERM: https://github.com/kasun/YapDi/blob/master/yapdi.py
+            signal.signal(signal.SIGTERM, sigterm_handler)
+            #. mailbot
+            bot = MailBot(('127.0.0.1', 1025), ('127.0.0.1', 25))
+            bot.start()
+            while True:
+                if DEBUG:
+                    bot.stats()
+                time.sleep(1) 
+        except KeyboardInterrupt:
+            bot.stop()
+    if args.action == 'stop':
+        logging.info('Stop MailBot ...')
+        daemon.kill()
 
 if __name__ == '__main__':
     main()
