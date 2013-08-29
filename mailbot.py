@@ -361,6 +361,11 @@ def main():
             #. If something error, we can use CTRL+C to force the bot stop.
             except KeyboardInterrupt:
                 mailbot_instance.stop()
+            except Exception, e:
+                mailbot_instance.notice(
+                    text="Exception: %s" % (str(e)),
+                    subject="%s error!" % (BOTNAME)
+                )
         else:
             print('Daemonization failed!')
     if args.action == 'stop':
