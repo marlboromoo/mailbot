@@ -23,12 +23,15 @@ import yapdi
 #  EDIT ME <3
 ###############################################################################
 
-NEWLINE = '\n'
-COMMASPACE = ', '
+BOTNAME = 'MailBot'
+LOGFILE = '/tmp/mailbot.log'
+PIDFILE = '/tmp/mailbot.pid'
 MAX_MAIL_PER_MINUTE = 10
 MAX_MAIL_PER_HOUR = MAX_MAIL_PER_MINUTE * 60
 ALERT_THRESHILD = 20 
-BOT_ADDRESS = 'MailBot@cylee.com'
+BIND_ADDRESS = ('127.0.0.1', 1025)
+SMTP_ADDRESS = ('127.0.0.1', 25)
+BOT_ADDRESS = 'mailbot@localhost'
 OP_ADDRESS = ['marlboromoo@gmail.com', 'timothy.lee@104.com.tw']
 PURGE_OVER_THRESHOLD = True
 DEBUG = True
@@ -36,6 +39,9 @@ DEBUG = True
 ###############################################################################
 #  MailBot <3
 ###############################################################################
+
+NEWLINE = '\n'
+COMMASPACE = ', '
 
 class BotsSMTPServer(PureProxy):
 
@@ -153,7 +159,7 @@ class MailBot(object):
     def start(self):
         """Start the MailBot.
         """
-        logging.info("MailBot - tiny mail robot.")
+        logging.info("%s - tiny mail robot." % (BOTNAME))
         self.smtp = BotsSMTPServer(self.localaddr, self.remoteaddr)
         self.smtp.last_reset = int(time.time())
         self.is_alive = True
@@ -180,7 +186,7 @@ class MailBot(object):
         logging.info("* Server listen at %s:%s." % (
             self.localaddr[0], self.localaddr[1]))
         #logging.info("* Quit the server with CONTROL+C.")
-        self.notice(text='<3', subject='MailBot start!')
+        self.notice(text='<3', subject='%s start!' % (BOTNAME))
 
     def stop(self):
         """Stop the MailBot.
@@ -194,7 +200,7 @@ class MailBot(object):
         #self.reseter_thread.join()
         #self.checker_thread.join()
         #logging.info("!! All threads stop. ")
-        self.notice(text='<3', subject='MailBot stop!')
+        self.notice(text='<3', subject='%s stop!' % (BOTNAME))
         logging.info('Done.')
 
     def count(self):
@@ -316,45 +322,46 @@ def sigterm_handler(signum, frame):
 def main():
     #. logger
     logging.basicConfig(
-        filename='/tmp/mailbot.log',
+        filename=LOGFILE,
         format='%(asctime)s - %(levelname)s - %(message)s',
         #datefmt='%Y-%M-%d %H:%M:%S',
-        level=logging.DEBUG
+        level=logging.DEBUG,
     )
     #. parse arg
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['start', 'stop'])
     args = parser.parse_args()
-    daemon = yapdi.Daemon(pidfile='/tmp/mailbot.pid')
+    daemon = yapdi.Daemon(pidfile=PIDFILE)
     if args.action == 'start':
-        print 'Start MailBot ...'
+        print "Start %s ..." % (BOTNAME)
         #. daemonize
         if daemon.status():
-            print "MailBot is already running!"
+            print "%s is already running!" % (BOTNAME)
             exit()
         retcode = daemon.daemonize()
         if retcode == yapdi.OPERATION_SUCCESSFUL:
             try:
                 signal.signal(signal.SIGTERM, sigterm_handler)
                 #. mailbot
-                bot = MailBot(('127.0.0.1', 1025), ('127.0.0.1', 25))
+                bot = MailBot(BIND_ADDRESS, (SMTP_ADDRESS))
                 bot.start()
                 while True:
                     if DEBUG:
                         bot.stats()
                     time.sleep(1) 
-            except KeyboardInterrupt:
+            except KeyboardInterrupt, e:
+                del(e)
                 bot.stop()
         else:
             print('Daemonization failed!')
     if args.action == 'stop':
-        print 'Stop MailBot ...'
+        print 'Stop %s ...' % (BOTNAME)
         if not daemon.status():
-            print "MailBot is not running!"
+            print "%s is not running!" % (BOTNAME)
             exit()
         retcode = daemon.kill()
         if retcode == yapdi.OPERATION_FAILED:
-            print "Trying to stop MailBot failed!"
+            print "Trying to stop %s failed!" % (BOTNAME)
         else:
             print "Done."
 
