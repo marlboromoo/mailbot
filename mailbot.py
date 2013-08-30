@@ -251,7 +251,7 @@ class MailBot(object):
     def flush(self):
         """Flush the mails in the queue.
         """
-        logging.info("%s ** Flush the mail queue.")
+        logging.info("** Flush the mail queue.")
         i = 0
         mails = self.count()
         while i < mails:
